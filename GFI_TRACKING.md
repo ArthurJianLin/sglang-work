@@ -1,7 +1,8 @@
 # SGLang Good-First-Issue 跟踪（patch 开发工作页）
 
 > 个人工作文档，不参与上游 PR。换环境 clone 后从本文件开始。
-> 生成时间：2026-10-20。仓库基线：main = `49766a74f9`（Gitee 镜像快照，上游最新为 `306ccf6f`，开发前先同步）。
+> 生成时间：2026-10-20。仓库基线：main = `309a6802fa`（含本文件；基于 Gitee 镜像 `49766a74`）。
+> **认领核实更新：2026-10-20 晚**——原首选 #1/#2/#3 均有活跃开放 PR，勿重复开工。
 
 ## 一、社区 Patch 合入流程标准（摘自 docs/docs/developer_guide/contribution_guide.mdx）
 
@@ -66,53 +67,85 @@ pytest test/registered/unit/mem_cache/ -v                          # 目录级
 
 ## 二、5 个候选 GFI（按推荐顺序）
 
-> 状态核实时间：2026-10-20。开工前先到 issue 页确认"无人认领 + 未被修复"，礼貌留言 "I'd like to work on this"。
+> 初次筛选：2026-10-20。**认领复核不通过——见第二节末「现状」**。
 
-### 🥇 #1 首选：#6357 — Prometheus metric `avg_request_queue_latency` 未采集（Bug）
+### 🥇 #1 ~~首选~~：#6357 — `avg_request_queue_latency` 未采集
 
 - **链接**：https://github.com/sgl-project/sglang/issues/6357
-- **难度**：⭐⭐（低）| **类型**：bug 修复 | **状态**：open，6 评论，2026-09-13 更新
-- **做什么**：`avg_request_queue_latency` 指标在 Prometheus 暴露端缺失/不更新，定位并补上采集链路
-- **为什么适合**：bug 修复范围明确、验收清晰（指标出现即修好）；涉及 scheduler → metrics 传递链，正好摸清调度观测面
-- **入手路径**：`python/sglang/srt/managers/metrics.py` + scheduler 里 queue 时间戳记录点
-- **PR 标题建议**：`[Fix] metrics: Collect avg_request_queue_latency in scheduler`
+- **本地缺口**：`SchedulerStats` / `metrics_collector.py` 仍无此 gauge；只有 `queue_time_seconds` histogram
+- **⛔ 勿新开 PR**：已有活跃 PR [#38228](https://github.com/sgl-project/sglang/pull/38228)（Guts1005，10-13 更新，含单测；等 maintainer review / `run-ci`）；另 [#36737](https://github.com/sgl-project/sglang/pull/36737) 仍 open
+- **可选协助**：帮 #38228 过 CI / 跟进 review（勿再写第三份实现）
 
-### 🥇 #2 并行首选：#5979 — Add KV cache usage prometheus metrics（Feature）
+### 🥇 #2 ~~并行首选~~：#5979 — KV cache usage prometheus metrics
 
 - **链接**：https://github.com/sgl-project/sglang/issues/5979
-- **难度**：⭐⭐（低-中）| **类型**：feature | **状态**：open，**11 评论**，2026-08-13 更新（偏冷，认领前必须确认）
-- **做什么**：对标 vLLM，给 SGLang 加 KV cache 利用率 Prometheus 指标
-- **为什么适合**：KV cache 是主线 C2 核心知识；有 vLLM 参照实现可抄思路；纯 Python 观测层风险低
-- **⚠️ 风险**：评论多且停更两个月，很可能别人已在做——**先留言确认再动工**
-- **入手路径**：`python/sglang/srt/mem_cache/` 的使用量统计 → `managers/metrics.py` 暴露 gauge
-- **PR 标题建议**：`[Feat] metrics: Expose KV cache usage prometheus metrics`
+- **本地已有**：`sglang:full_token_usage` / `kv_used_tokens` 等；缺的多半是 vLLM 别名 `gpu_cache_usage_perc`
+- **⛔ 勿新开**：[#34714](https://github.com/sgl-project/sglang/pull/34714) open（10-03）
 
-### 🥈 #3：#19612 — Unified JIT / Precompilation Cache Directory（Feature）
+### 🥈 #3 ~~JIT cache~~：#19612 — Unified JIT / Precompilation Cache Directory
 
 - **链接**：https://github.com/sgl-project/sglang/issues/19612
-- **难度**：⭐⭐⭐（中）| **类型**：feature | **状态**：open，5 评论，2026-10-13 更新（活跃）
-- **做什么**：统一分散的 JIT/预编译缓存目录到单一可配置位置
-- **为什么适合**：**文件系统/缓存路径管理 = 存储内核背景对口**；近期还在更新说明维护者关注
-- **入手路径**：搜索各 JIT 编译路径的 cache dir 硬编码 → 抽统一配置项 + 环境变量
-- **PR 标题建议**：`[Feat] runtime: Unify JIT and precompilation cache directory`
+- **⛔ 多人做过**：[#44068](https://github.com/sgl-project/sglang/pull/44068) closed；[#33424](https://github.com/sgl-project/sglang/pull/33424) / [#35621](https://github.com/sgl-project/sglang/pull/35621) 仍 open
 
-### 🥈 #4：#18891 — server-disk checksum for update weights from disk（Diffusion）
+### 🥈 #4 ★ 当前最可做切片：#18891 — disk checksum（Diffusion）
 
 - **链接**：https://github.com/sgl-project/sglang/issues/18891
-- **难度**：⭐⭐⭐（中）| **类型**：feature | **状态**：open，3 评论，2026-03-03 更新（冷）
-- **做什么**：Diffusion 模型从磁盘更新权重时，对 VAE/text encoder 做 checksum 比对
-- **为什么适合**：**磁盘校验/完整性 = 存储背景对口**
-- **⚠️ 风险**：停更半年，需先确认 issue 是否仍有效
-- **入手路径**：`python/sglang/srt/model_loader/` 权重加载路径 + hash 校验
-- **PR 标题建议**：`[Feat] loader: Add disk checksum verification for weight updates`
+- **历史**：JasonZhao47 认领后放弃（03-03）；assignee 仍是 maintainer `zhaochenyang20`
+- **VAE 半边已被占**：[#41407](https://github.com/sgl-project/sglang/pull/41407)（PansaLegrand，draft）明确写 *Related to #18891 (VAE portion)*，并声明 **text-encoder 命名映射 / fused weights / sharded refit 是 follow-up**
+- **✅ 可认领切片**：text-encoder 的 server↔disk checksum 比对（issue 原意的另一半）
+- **入手路径**：
+  - `python/sglang/multimodal_gen/runtime/post_training/weights_updater.py`
+  - `tensor_update_checker.py` / `get_weights_checksum`
+  - `test/single_test_file/test_update_weights_from_disk.py`
+  - 参考 #41407 的 VAE parity 测法，扩到 text_encoder
+- **PR 标题建议**：`[Feat] diffusion: Verify text-encoder checkpoint parity after disk updates`
+- **开工前必做**：在 #18891 留言认领 text-encoder 切片，并 @ PansaLegrand 避免与 #41407 撞车
 
-### 🥉 #5 长线挑战：#1715 — Cascade attention kernels（Kernel）
+### 🥉 #5 长线：#1715 — Cascade attention kernels
 
-- **链接**：https://github.com/sgl-project/sglang/issues/1715
-- **难度**：⭐⭐⭐⭐⭐（高）| **类型**：kernel 集成 | **状态**：open，8 评论，2026-07-24 更新
-- **做什么**：集成 FlashInfer 的 cascade attention kernel（长上下文 KV 超 L2 缓存场景）
-- **为什么放最后**：high priority + 真内核工程，适合**第 3+ 个 PR** 再碰（前两个练手攒信任）
-- **参考**：https://flashinfer.ai/2024/02/02/cascade-inference.html
+- 仍高难度，维持「第 3+ 个 PR 再碰」
+
+### 现状结论（2026-10-20 晚）
+
+| 原排序 | Issue | 结论 |
+|--------|-------|------|
+| #1 | 6357 | 有完整实现 PR，旁观/协助即可 |
+| #2 | 5979 | 有 PR + 本地已有大量 KV usage gauges |
+| #3 | 19612 | 多 PR 缠斗 |
+| #4 | 18891 | VAE 有 draft PR；**text-encoder 仍空**（次选） |
+| #5 | 1715 | 暂缓 |
+
+其他热门 GFI（#6531 / #18427 / #28808 / #8540 / #19092 的 spam PR 等）多数有人占或已关闭。
+
+### ★ 重筛结果：当前最合适、真正没人干的 GFI
+
+> 扫了全部 46 个 open GFI + 关联 open/closed PR。多数要么有活跃 PR，要么 10 月中有人刷号认领后被 maintainer 关掉。
+
+#### 🥇 首选：**#19092 — Parallelize Diffusion module loading**
+
+- **链接**：https://github.com/sgl-project/sglang/issues/19092
+- **难度**：⭐⭐⭐（中）| **类型**：perf / loading | **assignee**：仅 maintainer 挂名
+- **为什么现在空**：Asthenia0412 的 [#44127](https://github.com/sgl-project/sglang/pull/44127) 因「8 小时开 16 个无关 PR」被 hnyls2002 关掉；**当前无 open PR**；本地 `composed_pipeline_base.py` 仍是串行 `for spec in tqdm(component_load_specs)`（约 L621）
+- **做什么**：`text_encoder` + `transformer` 并行加载（ThreadPool / 现有 LLM 并行加载策略），冷启动从 ~63s load 压到 ~max(两者)
+- **为什么适合**：磁盘/权重加载路径 = 存储背景对口；范围清晰；有 #19087 的 profiling 数字当基线
+- **入手**：`python/sglang/multimodal_gen/runtime/pipelines_core/composed_pipeline_base.py` → `load_modules`
+- **PR 标题建议**：`[Perf] diffusion: Parallelize heavy component loading`
+- **开工前**：issue 留言认领 + 说明不重复 Asthenia 的 spam PR
+
+#### 🥈 次选：**#18891 — text-encoder disk checksum**（VAE 半边已有 #41407）
+
+- 见上文 #4；与 #41407 协调 text-encoder 切片即可
+
+#### 🥉 备选（更难 / 需先核实）
+
+| Issue | 说明 |
+|-------|------|
+| #7892 TBO in draft models | 无 open PR（WIP #32529 已关）；代码仍 `not model_runner.is_draft_worker`——真需求，但是硬核 speculative |
+| #10585 / #21085 / #12562 | Asthenia 认领后 PR 被清；暂无 open PR，但难度/GPU 依赖更高 |
+
+#### ❌ 已排除（看起来空、实际有人）
+
+6357→#38228；5979→#34714；3244→#36116；8174→建议关闭+#40476；6531→#35782；19087→#35056；8072→Pansa 认领中；28808→多人 PR 等。
 
 ## 三、换环境开发流程（本仓库专用）
 
